@@ -1,0 +1,84 @@
+import random
+
+# Constants (example values)
+L = 2.0           # length in meters
+M = 1000.0        # bending moment in Nm
+sigma_max = 250e6 # allowable stress in Pascals (e.g., 250 MPa)
+
+# Fitness function: minimize volume but penalize stress violation
+def fitness(individual):
+    w, h = individual
+    if w <= 0 or h <= 0:
+        return 0  # invalid dimensions
+    
+    # Calculate stress
+    c = h / 2
+    I = (w * h**3) / 12
+    sigma = (M * c) / I
+    
+    volume = w * h * L
+    
+    # Penalize if stress exceeds allowable limit (large penalty)
+    penalty = 0
+    if sigma > sigma_max:
+        penalty = 1e10 * (sigma - sigma_max)
+    
+    # Since GA maximizes fitness, return negative volume minus penalty
+    return -volume - penalty
+
+# Generate initial population: random (w,h) pairs within bounds
+def generate_population(size):
+    return [(random.uniform(0.01, 0.3), random.uniform(0.01, 0.5)) for _ in range(size)]
+
+# Selection: roulette wheel based on fitness
+def select(population):
+    max_fit = sum(fitness(ind) for ind in population)
+    pick = random.uniform(0, max_fit)
+    current = 0
+    for ind in population:
+        current += fitness(ind)
+        if current >= pick:
+            return ind
+    return population[-1]
+
+# Crossover: average two parents
+def crossover(p1, p2):
+    return ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
+
+# Mutation: add small random change
+def mutate(ind, mutation_rate=0.1):
+    w, h = ind
+    if random.random() < mutation_rate:
+        w += random.gauss(0, 0.01)
+        h += random.gauss(0, 0.01)
+    # Keep bounds
+    w = max(0.01, min(w, 0.3))
+    h = max(0.01, min(h, 0.5))
+    return (w, h)
+
+def genetic_algorithm(pop_size=30, generations=50, mutation_rate=0.1):
+    population = generate_population(pop_size)
+    best = None
+
+    for gen in range(generations):
+        new_population = []
+        for _ in range(pop_size):
+            parent1 = select(population)
+            parent2 = select(population)
+            child = crossover(parent1, parent2)
+            child = mutate(child, mutation_rate)
+            new_population.append(child)
+        population = new_population
+
+        gen_best = max(population, key=fitness)
+        if best is None or fitness(gen_best) > fitness(best):
+            best = gen_best
+
+        # Print every 10 generations
+        if (gen + 1) % 10 == 0:
+            print(f"Gen {gen+1}: Best w={best[0]:.4f} m, h={best[1]:.4f} m, Fitness={fitness(best):.6f}")
+
+    return best, fitness(best)
+
+best_dims, best_fit = genetic_algorithm()
+print(f"\nOptimal dimensions found:\nWidth = {best_dims[0]:.4f} m\nHeight = {best_dims[1]:.4f} m\nVolume = {-best_fit:.6f} m^3 (approx)")
