@@ -1,0 +1,50 @@
+import random
+
+def fitness(x):
+    return (x - 3) ** 2
+
+# Get user inputs
+num_particles = int(input("Enter number of particles (e.g., 5): "))
+inertia_weight = float(input("Enter inertia weight (e.g., 0.5): "))
+cognitive_coeff = float(input("Enter cognitive coefficient (e.g., 1.5): "))
+social_coeff = float(input("Enter social coefficient (e.g., 1.5): "))
+num_iterations = int(input("Enter number of iterations (e.g., 20): "))
+
+# Initialize particles
+particles = [random.uniform(0, 10) for _ in range(num_particles)]
+velocities = [random.uniform(-1, 1) for _ in range(num_particles)]
+
+personal_best_positions = particles[:]
+personal_best_fitness = [fitness(p) for p in particles]
+
+global_best_position = personal_best_positions[personal_best_fitness.index(min(personal_best_fitness))]
+global_best_fitness = min(personal_best_fitness)
+
+print(f"\nInitial Global Best Position: {global_best_position:.4f} Fitness: {global_best_fitness:.4f}")
+
+for iteration in range(num_iterations):
+    for i in range(num_particles):
+        r1 = random.random()
+        r2 = random.random()
+        velocities[i] = (inertia_weight * velocities[i]
+                         + cognitive_coeff * r1 * (personal_best_positions[i] - particles[i])
+                         + social_coeff * r2 * (global_best_position - particles[i]))
+        
+        particles[i] += velocities[i]
+        
+        # Keep particles in bounds [0,10]
+        particles[i] = max(0, min(10, particles[i]))
+        
+        current_fitness = fitness(particles[i])
+        
+        if current_fitness < personal_best_fitness[i]:
+            personal_best_fitness[i] = current_fitness
+            personal_best_positions[i] = particles[i]
+            
+            if current_fitness < global_best_fitness:
+                global_best_fitness = current_fitness
+                global_best_position = particles[i]
+    
+    print(f"Iteration {iteration+1}: Global Best Position = {global_best_position:.4f}, Fitness = {global_best_fitness:.4f}")
+
+print(f"\nBest solution found: x = {global_best_position:.4f} with fitness = {global_best_fitness:.4f}")
