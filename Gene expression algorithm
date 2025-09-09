@@ -1,0 +1,50 @@
+import random
+
+def fitness(x):
+    return (x - 3) ** 2
+
+def initialize_population(size):
+    return [random.uniform(0, 10) for _ in range(size)]
+
+def select_two_best(population):
+    sorted_pop = sorted(population, key=fitness)
+    return sorted_pop[0], sorted_pop[1]
+
+def find_worst_index(population):
+    worst_idx = 0
+    worst_fit = fitness(population[0])
+    for i in range(1, len(population)):
+        if fitness(population[i]) > worst_fit:
+            worst_idx = i
+            worst_fit = fitness(population[i])
+    return worst_idx
+
+def mutate(x, mutation_rate=0.1):
+    return x + random.uniform(-mutation_rate, mutation_rate)
+
+def gene_expression_algorithm(pop_size, generations, mutation_rate):
+    population = initialize_population(pop_size)
+
+    for gen in range(generations):
+        parent1, parent2 = select_two_best(population)
+        child = (parent1 + parent2) / 2
+        child = mutate(child, mutation_rate)
+        worst_idx = find_worst_index(population)
+
+        if fitness(child) < fitness(population[worst_idx]):
+            population[worst_idx] = child
+
+        best = min(population, key=fitness)
+        print(f"Generation {gen+1}: Best x = {best:.4f}, Fitness = {fitness(best):.4f}")
+
+    best_solution = min(population, key=fitness)
+    return best_solution, fitness(best_solution)
+
+# Get user input
+pop_size = int(input("Enter population size (e.g., 5): "))
+generations = int(input("Enter number of generations (e.g., 20): "))
+mutation_rate = float(input("Enter mutation rate (e.g., 0.1): "))
+
+best_x, best_fit = gene_expression_algorithm(pop_size, generations, mutation_rate)
+
+print(f"\nBest solution found: x = {best_x:.4f} with fitness = {best_fit:.4f}")
