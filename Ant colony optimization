@@ -1,0 +1,148 @@
+import numpy as np
+
+class AntColonyVRP:
+    def __init__(self, cities, demands, vehicle_capacity, n_ants, n_iterations, alpha=1.0, beta=5.0, rho=0.5, initial_pheromone=1.0):
+        self.cities = cities
+        self.demands = demands
+        self.vehicle_capacity = vehicle_capacity
+        self.n = len(cities)
+        self.n_ants = n_ants
+        self.n_iterations = n_iterations
+        self.alpha = alpha
+        self.beta = beta
+        self.rho = rho
+        self.pheromone = np.full((self.n, self.n), initial_pheromone)
+        self.distances = self._calculate_distances()
+        self.heuristic = 1 / (self.distances + np.eye(self.n))
+
+    def _calculate_distances(self):
+        n = self.n
+        dist = np.zeros((n, n))
+        for i in range(n):
+            for j in range(n):
+                if i != j:
+                    dist[i, j] = np.linalg.norm(np.array(self.cities[i]) - np.array(self.cities[j]))
+        return dist
+
+    def _choose_next_city(self, current_city, visited, remaining_capacity):
+        probabilities = np.zeros(self.n)
+        for city in range(1, self.n):
+            if city not in visited and self.demands[city] <= remaining_capacity:
+                pheromone = self.pheromone[current_city, city] ** self.alpha
+                heuristic = self.heuristic[current_city, city] ** self.beta
+                probabilities[city] = pheromone * heuristic
+        total = probabilities.sum()
+        if total == 0:
+            return 0
+        probabilities /= total
+        return np.random.choice(range(self.n), p=probabilities)
+
+    def _construct_solution(self):
+        routes = []
+        visited = set()
+        while len(visited) < self.n - 1:
+            route = [0]
+            capacity_left = self.vehicle_capacity
+            current_city = 0
+            while True:
+                next_city = self._choose_next_city(current_city, visited, capacity_left)
+                if next_city == 0:
+                    route.append(0)
+                    break
+                route.append(next_city)
+                visited.add(next_city)
+                capacity_left -= self.demands[next_city]
+                current_city = next_city
+            routes.append(route)
+        return routes
+
+    def _calculate_solution_length(self, routes):
+        total_length = 0
+        for route in routes:
+            for i in range(len(route) - 1):
+                total_length += self.distances[route[i], route[i + 1]]
+        return total_length
+
+    def _update_pheromones(self, all_solutions, all_lengths):
+        self.pheromone *= (1 - self.rho)
+        for routes, length in zip(all_solutions, all_lengths):
+            deposit = 1.0 / length
+            for route in routes:
+                for i in range(len(route) - 1):
+                    self.pheromone[route[i], route[i + 1]] += deposit
+                    self.pheromone[route[i + 1], route[i]] += deposit
+
+    def run(self):
+        best_solution = None
+        best_length = float('inf')
+        for iteration in range(self.n_iterations):
+            all_solutions = []
+            all_lengths = []
+            for _ in range(self.n_ants):
+                solution = self._construct_solution()
+                length = self._calculate_solution_length(solution)
+                all_solutions.append(solution)
+                all_lengths.append(length)
+                if length < best_length:
+                    best_length = length
+                    best_solution = solution
+            self._update_pheromones(all_solutions, all_lengths)
+            print(f"Iteration {iteration+1}/{self.n_iterations}, Best length: {best_length:.4f}")
+        return best_solution, best_length
+
+def get_positive_int(prompt):
+    while True:
+        try:
+            value = int(input(prompt))
+            if value > 0:
+                return value
+            print("Please enter a positive integer.")
+        except ValueError:
+            print("Invalid input. Enter an integer.")
+
+def get_float_pair(prompt):
+    while True:
+        try:
+            x, y = input(prompt).split()
+            return float(x), float(y)
+        except:
+            print("Invalid input. Enter two numbers separated by space.")
+
+def main():
+    print("Vehicle Routing Problem - Ant Colony Optimization")
+    n_cities = get_positive_int("Enter number of cities including depot: ")
+    
+    cities = []
+    print("Enter city coordinates (x y):")
+    for i in range(n_cities):
+        city = get_float_pair(f" City {i} coords: ")
+        cities.append(city)
+        
+    demands = []
+    print("Enter demands for each city (depot demand should be 0):")
+    for i in range(n_cities):
+        while True:
+            try:
+                d = float(input(f" Demand city {i}: "))
+                if d >= 0:
+                    demands.append(d)
+                    break
+                else:
+                    print("Demand must be non-negative.")
+            except ValueError:
+                print("Invalid input, enter a number.")
+    
+    vehicle_capacity = float(input("Enter vehicle capacity: "))
+    n_ants = get_positive_int("Enter number of ants: ")
+    n_iterations = get_positive_int("Enter number of iterations: ")
+    
+    aco_vrp = AntColonyVRP(cities, demands, vehicle_capacity, n_ants, n_iterations)
+    best_routes, best_length = aco_vrp.run()
+
+    print("\nBest routes found:")
+    for idx, route in enumerate(best_routes):
+        print(f" Route {idx + 1}: {route}")
+    print(f"Total distance: {best_length:.4f}")
+
+if __name__ == "__main__":
+    main()
