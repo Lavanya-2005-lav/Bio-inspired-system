@@ -1,0 +1,79 @@
+import random
+
+# -------------------------
+# User Input
+# -------------------------
+income = int(input("Enter your total income: "))
+
+# Get categories and required expenses
+num_categories = int(input("Enter number of categories: "))
+required_expenses = {}
+
+for i in range(num_categories):
+    cat = input(f"Enter category {i+1} name: ")
+    cost = int(input(f"Enter required expense for {cat}: "))
+    required_expenses[cat] = cost
+
+# Parameters
+n = int(input("Enter number of nests (e.g., 3): "))
+pa = float(input("Enter discovery probability (0 to 1, e.g., 0.25): "))
+max_iter = int(input("Enter number of iterations: "))
+
+# -------------------------
+# Fitness Function
+# -------------------------
+def fitness(budget):
+    """Calculate savings = income - required expenses"""
+    total_required = sum(required_expenses.values())
+    savings = income - total_required
+    return savings
+
+# -------------------------
+# Initialize Random Nests
+# -------------------------
+def random_nest():
+    nest = {}
+    remaining = income
+    for i, cat in enumerate(required_expenses):
+        if i == num_categories - 1:  # last category gets remaining
+            nest[cat] = remaining
+        else:
+            value = random.randint(required_expenses[cat], remaining)
+            nest[cat] = value
+            remaining -= value
+    return nest
+
+nests = [random_nest() for _ in range(n)]
+
+# -------------------------
+# Cuckoo Search Iterations
+# -------------------------
+for iteration in range(max_iter):
+    print(f"\nIteration {iteration+1}:")
+    scores = [fitness(nest) for nest in nests]
+    for i, nest in enumerate(nests):
+        print(f" Nest {i+1}: {nest}, Savings = {scores[i]}")
+    
+    # Generate new solution (Levy flight simulated as random tweak)
+    new_nest = nests[0].copy()
+    cat = random.choice(list(new_nest.keys()))  # pick a random category
+    new_nest[cat] += random.randint(-100, 100)
+    
+    # Adjust last category to keep total within income
+    last_cat = list(new_nest.keys())[-1]
+    new_nest[last_cat] = income - sum(new_nest[c] for c in new_nest if c != last_cat)
+
+    if fitness(new_nest) >= fitness(nests[0]):
+        nests[0] = new_nest
+    
+    # Abandon worst nest with probability pa
+    if random.random() < pa:
+        nests[-1] = random_nest()
+
+# -------------------------
+# Final Result
+# -------------------------
+scores = [fitness(nest) for nest in nests]
+best_index = scores.index(max(scores))
+print("\nBest Budget Plan:", nests[best_index])
+print("Maximum Savings:", scores[best_index])
